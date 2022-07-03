@@ -1,0 +1,10 @@
+name: napari-cellseg
+display_name: napari cellseg
+contributions:
+  commands:
+    - id: napari-cellseg.make_cellseg_widget
+      python_name: napari_cellseg._widget:cellseg_widget
+      title: NeurIPS CellSeg
+  widgets:
+    - command: napari-cellseg.make_cellseg_widget
+      display_name: NeurIPS CellSeg

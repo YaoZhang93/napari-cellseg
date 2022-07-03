@@ -1,0 +1,2 @@
+[napari.manifest]
+napari-cellseg = napari_cellseg:napari.yaml
