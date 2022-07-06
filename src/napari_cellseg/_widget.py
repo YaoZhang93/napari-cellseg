@@ -10,12 +10,15 @@ from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
 
+from napari.utils.notifications import show_info
+
 if TYPE_CHECKING:
     import napari
 
 from enum import Enum
 import os
 join = os.path.join
+import time
 import numpy as np
 # from skimage.filters import threshold_otsu
 # from skimage.measure import label
@@ -74,7 +77,12 @@ def load_model(model_name):
                         feature_size=24, # should be divisible by 12
                         spatial_dims=2
                     )
-        checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr_3class/best_Dice_model.pth'), map_location=torch.device(device))
+        if not os.path.isfile(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth')):
+            show_info('downloading {} model'.format(model_name))
+            torch.hub.download_url_to_file('https://zenodo.org/record/6792177/files/best_Dice_model.pth?download=1', join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'))
+            show_info('download {} model success'.format(model_name))
+        checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'), map_location=torch.device(device))
+
         model.load_state_dict(checkpoint['model_state_dict'])
 
     model = model.to(device)
@@ -118,6 +126,7 @@ def preprocess(img_data):
 
 def get_seg(pre_img_data, model_name):
     model = load_model(model_name)
+    show_info('segmentation starting')
     #%%
     roi_size = (256, 256)
     sw_batch_size = 4
@@ -135,4 +144,5 @@ def get_seg(pre_img_data, model_name):
         t1 = time.time()
         # print(f'Prediction finished: {img_layer.name}; img size = {pre_img_data.shape}; costing: {t1-t0:.2f}s')
         print(f'Prediction finished; img size = {pre_img_data.shape}; costing: {t1-t0:.2f}s')
+    show_info('segmentation finished')
     return test_pred_mask
