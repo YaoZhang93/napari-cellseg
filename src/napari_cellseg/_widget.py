@@ -28,16 +28,16 @@ from monai.inferers import sliding_window_inference
 from .models.unetr2d import UNETR2D
 import time
 from skimage import io, segmentation, morphology, measure, exposure
+import pathlib
 
 class ModelName(Enum):
-    Custom = 'custom'
     UNet = 'unet'
     VNet = 'vnet'
     UNETR = 'unetr'
     SwinUNETR = 'swinunetr'
 
 
-def load_model(model_name):
+def load_model(model_name, custom_model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if model_name == 'unet':
@@ -78,11 +78,13 @@ def load_model(model_name):
                         feature_size=24, # should be divisible by 12
                         spatial_dims=2
                     )
-        if not os.path.isfile(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth')):
-            # show_info('downloading {} model'.format(model_name))
+        if os.path.isfile(custom_model_path):
+            checkpoint = torch.load(custom_model_path.resolve(), map_location=torch.device(device))
+        elif os.path.isfile(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth')):
+            checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'), map_location=torch.device(device))
+        else:
             torch.hub.download_url_to_file('https://zenodo.org/record/6792177/files/best_Dice_model.pth?download=1', join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'))
-            # show_info('download {} model success'.format(model_name))
-        checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'), map_location=torch.device(device))
+            checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'), map_location=torch.device(device))
 
         model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -93,8 +95,8 @@ def load_model(model_name):
 
 
 @magic_factory
-def cellseg_widget(img_layer: "napari.layers.Image", model_name: ModelName, custom_model_path: os.path, threshold: float) -> "napari.types.LayerDataTuple":
-    seg_labels = get_seg(preprocess(img_layer.data), model_name.value)
+def cellseg_widget(img_layer: "napari.layers.Image", model_name: ModelName, custom_model_path: pathlib.Path, threshold: float=0.5) -> "napari.types.LayerDataTuple":
+    seg_labels = get_seg(preprocess(img_layer.data), model_name.value, custom_model_path, threshold)
 
     seg_layer = (seg_labels, {"name": f"{img_layer.name}_seg"}, "labels")
     return seg_layer
@@ -125,9 +127,8 @@ def preprocess(img_data):
     return pre_img_data
 
 
-def get_seg(pre_img_data, model_name):
-    model = load_model(model_name)
-    show_info('segmentation starting')
+def get_seg(pre_img_data, model_name, custom_model_path, threshold):
+    model = load_model(model_name, custom_model_path)
     #%%
     roi_size = (256, 256)
     sw_batch_size = 4
@@ -140,7 +141,7 @@ def get_seg(pre_img_data, model_name):
         test_pred_out = torch.nn.functional.softmax(test_pred_out, dim=1) # (B, C, H, W)
         test_pred_npy = test_pred_out[0,1].cpu().numpy()
         # convert probability map to binary mask and apply morphological postprocessing
-        test_pred_mask = measure.label(morphology.remove_small_objects(morphology.remove_small_holes(test_pred_npy>0.5),16))
+        test_pred_mask = measure.label(morphology.remove_small_objects(morphology.remove_small_holes(test_pred_npy>threshold),16))
         # tif.imwrite(join(output_path, img_name.split('.')[0]+'_label.tiff'), test_pred_mask, compression='zlib')
         t1 = time.time()
         # print(f'Prediction finished: {img_layer.name}; img size = {pre_img_data.shape}; costing: {t1-t0:.2f}s')
