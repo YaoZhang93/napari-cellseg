@@ -30,6 +30,7 @@ import time
 from skimage import io, segmentation, morphology, measure, exposure
 
 class ModelName(Enum):
+    Custom = 'custom'
     UNet = 'unet'
     VNet = 'vnet'
     UNETR = 'unetr'
@@ -78,9 +79,9 @@ def load_model(model_name):
                         spatial_dims=2
                     )
         if not os.path.isfile(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth')):
-            show_info('downloading {} model'.format(model_name))
+            # show_info('downloading {} model'.format(model_name))
             torch.hub.download_url_to_file('https://zenodo.org/record/6792177/files/best_Dice_model.pth?download=1', join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'))
-            show_info('download {} model success'.format(model_name))
+            # show_info('download {} model success'.format(model_name))
         checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'), map_location=torch.device(device))
 
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -92,7 +93,7 @@ def load_model(model_name):
 
 
 @magic_factory
-def cellseg_widget(img_layer: "napari.layers.Image", model_name: ModelName) -> "napari.types.LayerDataTuple":
+def cellseg_widget(img_layer: "napari.layers.Image", model_name: ModelName, custom_model_path: os.path, threshold: float) -> "napari.types.LayerDataTuple":
     seg_labels = get_seg(preprocess(img_layer.data), model_name.value)
 
     seg_layer = (seg_labels, {"name": f"{img_layer.name}_seg"}, "labels")
