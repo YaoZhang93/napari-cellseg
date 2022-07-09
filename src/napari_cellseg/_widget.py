@@ -31,10 +31,10 @@ from skimage import io, segmentation, morphology, measure, exposure
 import pathlib
 
 class ModelName(Enum):
-    UNet = 'unet'
-    VNet = 'vnet'
-    UNETR = 'unetr'
     SwinUNETR = 'swinunetr'
+    UNet = 'unet'
+    UNETR = 'unetr'
+
 
 
 def load_model(model_name, custom_model_path):
@@ -49,13 +49,7 @@ def load_model(model_name, custom_model_path):
                    strides=(2, 2, 2, 2),
                    num_res_units=2,
                )
-    elif model_name == 'vnet':
-        model = monai.networks.nets.VNet(
-                   spatial_dims=2,
-                   in_channels=16,
-                   out_channels=3,
-                   dropout_prob=0.0
-               ) 
+
     elif model_name == 'unetr':
         model = UNETR2D(
                     in_channels=3,
@@ -86,7 +80,7 @@ def load_model(model_name, custom_model_path):
             torch.hub.download_url_to_file('https://zenodo.org/record/6792177/files/best_Dice_model.pth?download=1', join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'))
             checkpoint = torch.load(join(os.path.dirname(__file__), 'work_dir/swinunetr/best_Dice_model.pth'), map_location=torch.device(device))
 
-        model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint['model_state_dict'])
 
     model = model.to(device)
     model.eval()
@@ -95,10 +89,10 @@ def load_model(model_name, custom_model_path):
 
 
 @magic_factory
-def cellseg_widget(img_layer: "napari.layers.Image", model_name: ModelName, custom_model_path: pathlib.Path, threshold: float=0.5) -> "napari.types.LayerDataTuple":
-    seg_labels = get_seg(preprocess(img_layer.data), model_name.value, custom_model_path, threshold)
+def cellseg_widget(image_layer: "napari.layers.Image", model_name: ModelName, custom_model_path: pathlib.Path, threshold: float=0.5) -> "napari.types.LayerDataTuple":
+    seg_labels = get_seg(preprocess(image_layer.data), model_name.value, custom_model_path, threshold)
 
-    seg_layer = (seg_labels, {"name": f"{img_layer.name}_seg"}, "labels")
+    seg_layer = (seg_labels, {"name": f"{image_layer.name}_seg"}, "labels")
     return seg_layer
 
 
